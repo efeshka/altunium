@@ -28,6 +28,10 @@
     #screen-btn:hover { background: #3a2c85; }
     #screen-btn.active { background: #da373c; }
     #screen-btn.active:hover { background: #a12828; }
+    #mic-btn { background: #248046; }
+    #mic-btn:hover { background: #1a6334; }
+    #mic-btn.muted { background: #da373c; }
+    #mic-btn.muted:hover { background: #a12828; }
     #voice-status { font-size: 14px; color: #666; }
   </style>
 </head>
@@ -40,6 +44,7 @@
   </div>
   <div id="voice">
     <button id="voice-btn">🎙 Войти в голосовой канал</button>
+    <button id="mic-btn" style="display: none;">🎤 Микрофон вкл</button>
     <button id="screen-btn" style="display: none;">🖥 Поделиться экраном</button>
     <div id="voice-status"></div>
   </div>
@@ -100,6 +105,8 @@
     const voiceBtn = document.getElementById('voice-btn');
     const voiceStatus = document.getElementById('voice-status');
     const screenBtn = document.getElementById('screen-btn');
+    const micBtn = document.getElementById('mic-btn');
+    let micOn = true;
 
     voiceBtn.addEventListener('click', async () => {
       if (room) {
@@ -113,6 +120,11 @@
         screenBtn.style.display = 'none';
         screenBtn.classList.remove('active');
         screenBtn.textContent = '🖥 Поделиться экраном';
+
+        micBtn.style.display = 'none';
+        micBtn.classList.remove('muted');
+        micBtn.textContent = '🎤 Микрофон вкл';
+        micOn = true;
         return;
     }
 
@@ -205,6 +217,7 @@
         voiceBtn.textContent = '📞 Выйти из голоса';
         voiceBtn.classList.add('connected');
         screenBtn.style.display = 'inline-block';
+        micBtn.style.display = 'inline-block';
       } catch (err) {
         console.error(err);
         voiceStatus.textContent = 'Ошибка: ' + err.message;
@@ -238,6 +251,27 @@
         screenShareOn = false;
         screenBtn.textContent = '🖥 Поделиться экраном';
         screenBtn.classList.remove('active');
+      }
+    });
+        // ============ МИКРОФОН ============
+    micBtn.addEventListener('click', async () => {
+      if (!room) return;
+
+      try {
+        micOn = !micOn;
+        await room.localParticipant.setMicrophoneEnabled(micOn);
+
+        if (micOn) {
+          micBtn.textContent = '🎤 Микрофон вкл';
+          micBtn.classList.remove('muted');
+        } else {
+          micBtn.textContent = '🔇 Микрофон выкл';
+          micBtn.classList.add('muted');
+        }
+      } catch (err) {
+        console.error(err);
+        // Если не получилось — вернём флаг обратно
+        micOn = !micOn;
       }
     });
   </script>

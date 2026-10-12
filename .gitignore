@@ -1,0 +1,4 @@
+node_modules/
+chat.db
+.env
+*.log

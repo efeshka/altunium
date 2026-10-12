@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const db = require('./db');
+const os = require('os');
 
 const app = express();
 const server = http.createServer(app);
@@ -85,6 +86,16 @@ io.on('connection', (socket) => {
 });
 
 const PORT = 3000;
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Сервер: http://localhost:${PORT}`);
+
+  // Находим Tailscale IP (начинается на 100.)
+  const nets = os.networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      if (net.family === 'IPv4' && net.address.startsWith('100.')) {
+        console.log(`Для друзей: http://${net.address}:${PORT}`);
+      }
+    }
+  }
 });

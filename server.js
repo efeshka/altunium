@@ -9,6 +9,34 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
+const { AccessToken } = require('livekit-server-sdk');
+
+const LIVEKIT_API_KEY = 'devkey';
+const LIVEKIT_API_SECRET = 'secret';
+
+app.get('/token', async (req, res) => {
+  const name = req.query.name;
+  const room = req.query.channel || 'general';
+
+  if (!name) {
+    return res.status(400).json({ error: 'name is required' });
+  }
+
+  const token = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
+    identity: name,
+    ttl: '2h',
+  });
+
+  token.addGrant({
+    room,
+    roomJoin: true,
+    canPublish: true,
+    canSubscribe: true,
+  });
+
+  res.json({ token: await token.toJwt() });
+});
+
 // Готовим запросы заранее — так быстрее и безопаснее
 const insertMessage = db.prepare(`
   INSERT INTO messages (channel, name, text, created_at)

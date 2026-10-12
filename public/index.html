@@ -19,6 +19,12 @@
     }
     .channel:hover { background: #3a3d43; }
     .channel.active { background: #5865f2; color: #fff; }
+    #voice { margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
+    #voice-btn { background: #248046; }
+    #voice-btn:hover { background: #1a6334; }
+    #voice-btn.connected { background: #da373c; }
+    #voice-btn.connected:hover { background: #a12828; }
+    #voice-status { font-size: 14px; color: #666; }
   </style>
 </head>
 <body>
@@ -28,6 +34,10 @@
     <button class="channel" data-channel="games"># игры</button>
     <button class="channel" data-channel="memes"># мемы</button>
   </div>
+  <div id="voice">
+    <button id="voice-btn">🎙 Войти в голосовой канал</button>
+    <div id="voice-status"></div>
+  </div>
   <div id="messages"></div>
   <form id="form">
     <input id="input" autocomplete="off" placeholder="Напиши сообщение..." />
@@ -35,6 +45,7 @@
   </form>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
   <script>
     const socket = io();
     const name = prompt('Как тебя зовут?') || 'Аноним';
@@ -77,6 +88,84 @@
         messages.appendChild(div);
       });
       messages.scrollTop = messages.scrollHeight;
+    });
+    // ============ ГОЛОСОВОЙ ЧАТ ============
+    let room = null;
+
+    const voiceBtn = document.getElementById('voice-btn');
+    const voiceStatus = document.getElementById('voice-status');
+
+    voiceBtn.addEventListener('click', async () => {
+      if (room) {
+        // Выходим из голосового канала
+        await room.disconnect();
+        room = null;
+        voiceBtn.textContent = '🎙 Войти в голосовой канал';
+        voiceBtn.classList.remove('connected');
+        voiceStatus.textContent = '';
+        return;
+    }
+
+  // Входим в голосовой канал
+      try {
+        voiceStatus.textContent = 'Подключаюсь...';
+
+    // 1. Получаем токен с нашего сервера
+        const res = await fetch(`/token?name=${encodeURIComponent(name)}&channel=${currentChannel}`);
+        const { token } = await res.json();
+
+        // 2. Создаём комнату и подключаемся
+        const { Room, RoomEvent } = LivekitClient;
+        room = new Room();
+
+        function updateVoiceStatus() {
+          if (!room) {
+            voiceStatus.textContent = '';
+            return;
+          }
+        const names = [...room.remoteParticipants.values()].map(p => p.identity);
+          if (names.length === 0) {
+            voiceStatus.textContent = 'Ты в голосовом канале (пока один)';
+          } else {
+            voiceStatus.textContent = `В голосе: ${names.join(', ')}`;
+          }
+        }
+
+        room.on(RoomEvent.ParticipantConnected, (p) => {
+          console.log('Зашёл:', p.identity);
+          updateVoiceStatus();
+        });
+
+        room.on(RoomEvent.ParticipantDisconnected, (p) => {
+          console.log('Вышел:', p.identity);
+          updateVoiceStatus();
+        });
+
+        room.on(RoomEvent.Connected, () => {
+          updateVoiceStatus();
+        });
+
+        room.on(RoomEvent.TrackSubscribed, (track, pub, participant) => {
+          console.log('Получен трек от:', participant.identity);
+          const audioEl = track.attach();
+          document.body.appendChild(audioEl);
+        });
+
+        room.on(RoomEvent.TrackUnsubscribed, (track) => {
+          track.detach().forEach(el => el.remove());
+        });
+
+        await room.connect('ws://localhost:7880', token);
+        await room.localParticipant.setMicrophoneEnabled(true);
+
+        updateVoiceStatus();
+
+        voiceBtn.textContent = '📞 Выйти из голоса';
+        voiceBtn.classList.add('connected');
+      } catch (err) {
+        console.error(err);
+        voiceStatus.textContent = 'Ошибка: ' + err.message;
+      }
     });
   </script>
 </body>

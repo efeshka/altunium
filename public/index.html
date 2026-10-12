@@ -209,7 +209,8 @@
           }
         });
 
-        await room.connect('ws://localhost:7880', token);
+        const livekitUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.hostname}/livekit`;
+        await room.connect(livekitUrl, token);
         await room.localParticipant.setMicrophoneEnabled(true);
 
         updateVoiceStatus();
